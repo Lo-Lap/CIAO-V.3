@@ -52,8 +52,8 @@ class Interpreter:
         self.classInitialization()
         self.stateTable = self.getStateTable()
 
-        # for clas in list(self.stateTable.keys()):
-        #     print_table(self.stateTable[clas][1:], self.stateTable[clas][0])
+        for clas in list(self.stateTable.keys()):
+            print_table(self.stateTable[clas][1:], self.stateTable[clas][0])
 
         # init scheme
         self.objects = {}
@@ -471,7 +471,6 @@ class Interpreter:
         ind_event = state_table[0].index(event)
         ind_state = state_name.index(autoClass.state)
         cell = state_table[ind_state][ind_event]
-
         if not cell:
             print("Состояния не могут быть изменены, задайте другое событие")
             for obj in list(self.objects.keys()):
@@ -507,9 +506,6 @@ class Interpreter:
             end_state = cell.end_state
             actions = cell.actions
 
-        if actions:
-            self.interpretActions(obj, actions)
-
         print(f"{Style.BRIGHT + obj + Style.RESET_ALL} >> "
               f"Переход: {Style.BRIGHT + autoClass.state + Style.RESET_ALL} -> "
               f"{Style.BRIGHT + end_state + Style.RESET_ALL}")
@@ -517,7 +513,10 @@ class Interpreter:
         print(f"{Style.BRIGHT + obj + Style.RESET_ALL} >> Cобытиe: {Style.BRIGHT + event + Style.RESET_ALL} "
               f"- выполнено\n")
 
-        self.isAfter(end_state, state_table, obj)
+        if actions:
+            self.interpretActions(obj, actions)
+
+        self.isAfter(autoClass.state, state_table, obj)
 
     def isAfter(self, state, stateTable, obj):
         if "after" not in stateTable[0]:
@@ -530,7 +529,6 @@ class Interpreter:
         if cell is None:
             return
 
-        # Получаем время для таймера
         var_name = ""
         className = self.objects[obj].clas
         for triggerEv in self.table_code["classes"][className]['states'][state]:
@@ -549,9 +547,9 @@ class Interpreter:
         # Функция для выполнения по завершении таймера
         def timer_complete():
             print(f"\n{obj} >> Таймер after завершился!")
+            self.objects[obj].state = cell.end_state
             if cell.actions:
                 self.interpretActions(obj, cell.actions)
-            self.objects[obj].state = cell.end_state
             print(f"{obj} >> Переход в состояние: {cell.end_state}\n")
             # self.isAfter(cell.end_state, stateTable, obj)
             print(">>> ", end='', flush=True)

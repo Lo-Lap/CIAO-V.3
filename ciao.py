@@ -16,11 +16,14 @@ def handle_command(command):
         print("Доступные команды:")
         print("  help - показать список команд")
         print("  exit - завершить программу")
+    # elif command == "re-translate":
+    #     ast = GetAST(ciao_json_file, command, False)
+        # print(GenerateCode(ast, "_debug\\out.ciao")
     else:
         ast = GetAST(ciao_json_file, command, False)
         # print(GenerateCode(ast, "_debug\\out.ciao")
-        if ast:
-            InterpretCode(ast)
+        # if ast:
+        #     InterpretCode(ast)
     return True
 
 

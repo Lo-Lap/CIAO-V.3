@@ -12,7 +12,7 @@ ciao TrafficLightProg
             t1: Integer
             t2: Integer
         states
-            Idle -> switch / t1:=20; t2:=10-> Red
+            Idle -> switch / t1:=10; t2:=10-> Red
             Red -> after (t1) / to_green-> Red
             Red -> onGreen -> Green
             Red -> stop -> Idle

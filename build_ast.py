@@ -79,5 +79,5 @@ def GetAST(jsonFile, codeFile, is_render):
     ast = BuildAst(syntaxInfo, dsl_info.axiom, tokenList)
     if ast is None:
         return None
-    __RenderAst('ast', ast, debugInfoDir, is_render)
+    __RenderAst(codeFile, ast, debugInfoDir, is_render)
     return ast
