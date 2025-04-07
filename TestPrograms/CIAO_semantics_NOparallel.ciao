@@ -242,211 +242,118 @@ ciao CiaoInterpreter
 
             Terminated -> reset_parser_state -> Idle
 
-
-   class InterpreterCore
+    class InterpreterCore
         events
-            load_program (ast : ASTNode)
-            step_execution
-            handle_command (command : String)
+            load_program (ast : TreeNode)
+            step_execution (command : String)
+            execute_command
             timer_complete
+            process_interface (interface : String)
+            handle_error (error : String)
         effects
             create_environment
             interpret_node
-            start_timer
-            cancel_timer
-        states
-            Idle -> load_program (ast) / create_environment -> Ready
-            Ready -> step_execution / interpret_node -> Running
-            Running -> handle_command (command) [is_exit] -> Idle
-            Running -> handle_command (command) [is_help] / show_help -> Running
-            Running -> handle_command (command) [is_interface] / show_interfaces -> Running
-            Running -> handle_command (command) [is_valid] / interpret_command -> Running
-            Running -> timer_complete / process_timer -> Running
-            Running -> . -> Idle
+            show_help
+            show_interfaces
+            interpret_command
 
-   class Environment
+            trigger_ready
+            trigger_running
+            clear_interpret_data
+            trigger_handle_error
+            reset_parser_state
+        conditions
+            is_valid
+        variables
+            error : String
+            ast : TreeNode
+            environment : Environment
+            current_command : String
+        states
+            Idle -> load_program (ast) / create_environment; trigger_ready -> Ready
+            Ready -> step_execution (current_command) / interpret_node; trigger_running -> Running
+            Running -> execute_command [current_command="exit"] / reset_interpreter_state -> Idle
+                    [else] / trigger_running -> Running
+            Running -> execute_command [current_command="help"] / show_help; trigger_ready -> Ready
+                    [else] / trigger_running -> Running
+            Running -> execute_command [current_command="interface"] / show_interfaces; trigger_ready -> Ready
+                    [else] / trigger_running -> Running
+            Running -> execute_command [is_valid] / interpret_command; trigger_ready -> Ready
+                    [else] / trigger_handle_error -> ErrorRecovery
+            Running -> process_interface (interface) / interpret_command; trigger_ready -> Ready
+                    [else] / trigger_running -> Running
+
+            // Обработка ошибок
+            ErrorRecovery -> handle_error (error) / clear_interpret_data -> Recovery
+            Recovery -> reset_parser_state -> Idle
+
+    class Environment
         events
-            create_automaton (class_name : String, init_state : String)
+            create_object (class_name : String, obj_name : String, init_state : String)
             set_variable (name : String, value : Any)
             get_variable (name : String)
             validate_link (link : String)
             validate_interface (interface : String)
         effects
-            store_automaton
-            update_variable
-            retrieve_value
-            check_link
-            check_interface
+            object_created
+            variable_updated
+            value_retrieved
+            link_validated
+            interface_validated
+        variables
+            objects : Map[String, ObjectInstance]
+            variables : Map[String, Any]
         states
-            Empty -> create_automaton (class_name, init_state) / store_automaton -> WithAutomata
-            WithAutomata -> set_variable (name, value) / update_variable -> WithVariables
-            WithVariables -> get_variable (name) / retrieve_value -> WithVariables
-            WithVariables -> validate_link (link) / check_link -> WithVariables
-            WithVariables -> validate_interface (interface) / check_interface -> WithVariables
-            WithVariables -> create_automaton (class_name, init_state) / store_automaton -> WithAutomata
+            Empty -> create_object (class_name, obj_name, init_state) / object_created -> WithObjects
+            WithObjects -> set_variable (name, value) / variable_updated -> WithVariables
+            WithVariables -> get_variable (name) / value_retrieved -> WithVariables
+            WithVariables -> validate_link (link) / link_validated -> WithVariables
+            WithVariables -> validate_interface (interface) / interface_validated -> WithVariables
 
-   class AutomatonInstance
+// вот отсюда ещё не проверено
+    class ObjectInstance
         events
             receive_event (event : String)
-            timer_expire
             state_enter (state : String)
-            interpret_condition (condition : String)
-            interpret_actions (actions : List[String])
+            check_condition (condition : String)
+            execute_actions (actions : List[String])
         effects
             handle_transition
-            start_timer (duration : Integer)
-            execute_actions
-            check_condition
-            process_actions
+            update_state
+            evaluate_condition
+            perform_actions
+        variables
+            current_state : String
+            conditions : Map[String, Boolean]
+            variables : Map[String, Any]
         states
-            Idle -> state_enter (state) -> Ready
+            Initial -> state_enter (state) / update_state -> Ready
             Ready -> receive_event (event) / handle_transition -> Processing
-            Processing -> interpret_actions (actions) / process_actions -> Ready
-            Ready -> timer_expire / start_timer -> Waiting
-            Waiting -> receive_event (event) / handle_transition -> Processing
-            Waiting -> timer_expire / start_timer -> Waiting
-            Ready -> interpret_condition (condition) / check_condition -> Ready
+            Processing -> execute_actions (actions) / perform_actions -> Ready
+            Ready -> check_condition (condition) / evaluate_condition -> Ready
 
-   scheme
+    scheme
         objects
-            lexer = new Lexer(Idle)
-            parser = new Parser(Idle)
-            interpreter = new InterpreterCore(Idle)
+            core = new InterpreterCore(Idle)
             env = new Environment(Empty)
-            automaton = new AutomatonInstance(Idle)
+            timer = new TimerManager(Inactive)
 
         links
-            lexer.add_token (token) <- parser.receive_token (token)
-            parser.build_ast_node (node) <- interpreter.load_program (node)
-            interpreter.interpret_node -> env.create_automaton (class_name, init_state)
-            env.store_automaton -> automaton.state_enter (state)
-            automaton.handle_transition -> interpreter.step_execution
-            interpreter.start_timer (duration) -> automaton.start_timer (duration)
-            automaton.timer_expire -> interpreter.timer_complete
+            core.create_environment -> env.create_object
+            core.interpret_command -> env.validate_interface
+            core.start_timer -> timer.start
+            core.cancel_timer -> timer.cancel
+            timer.expire -> core.timer_complete
+            env.interface_validated -> core.process_interface
 
         public
-            lexer.init_scan
-            parser.parse_nonterminal
-            interpreter.handle_command
-.
+            core.load_program
+            core.handle_command
+            core.step_execution
+    .
 
 
-class InterpreterCore
-    events
-        load_program (ast : ASTNode)
-        step_execution
-        handle_command (command : String)
-        timer_complete
-        process_interface (interface : String)
-    effects
-        create_environment
-        interpret_node
-        start_timer (duration : Integer)
-        cancel_timer
-        show_help
-        show_interfaces
-        interpret_command
-        process_timer
-    conditions
-        is_exit
-        is_help
-        is_interface
-        is_valid
-        timer_active
-    variables
-        ast : ASTNode
-        environment : Environment
-        timer : Timer
-        current_command : String
-    states
-        Idle -> load_program (ast) / create_environment -> Ready
-        Ready -> step_execution / interpret_node -> Running
-        Running -> handle_command (command) [is_exit] / . -> Idle
-        Running -> handle_command (command) [is_help] / show_help -> Running
-        Running -> handle_command (command) [is_interface] / show_interfaces -> Running
-        Running -> handle_command (command) [is_valid] / interpret_command -> Running
-        Running -> timer_complete / process_timer -> Running
-        Running -> process_interface (interface) / interpret_command -> Running
 
-class Environment
-    events
-        create_object (class_name : String, obj_name : String, init_state : String)
-        set_variable (name : String, value : Any)
-        get_variable (name : String)
-        validate_link (link : String)
-        validate_interface (interface : String)
-    effects
-        object_created
-        variable_updated
-        value_retrieved
-        link_validated
-        interface_validated
-    variables
-        objects : Map[String, ObjectInstance]
-        variables : Map[String, Any]
-    states
-        Empty -> create_object (class_name, obj_name, init_state) / object_created -> WithObjects
-        WithObjects -> set_variable (name, value) / variable_updated -> WithVariables
-        WithVariables -> get_variable (name) / value_retrieved -> WithVariables
-        WithVariables -> validate_link (link) / link_validated -> WithVariables
-        WithVariables -> validate_interface (interface) / interface_validated -> WithVariables
-
-class ObjectInstance
-    events
-        receive_event (event : String)
-        state_enter (state : String)
-        check_condition (condition : String)
-        execute_actions (actions : List[String])
-    effects
-        handle_transition
-        update_state
-        evaluate_condition
-        perform_actions
-    variables
-        current_state : String
-        conditions : Map[String, Boolean]
-        variables : Map[String, Any]
-    states
-        Initial -> state_enter (state) / update_state -> Ready
-        Ready -> receive_event (event) / handle_transition -> Processing
-        Processing -> execute_actions (actions) / perform_actions -> Ready
-        Ready -> check_condition (condition) / evaluate_condition -> Ready
-
-class TimerManager
-    events
-        start (duration : Integer)
-        cancel
-        expire
-    effects
-        timer_started
-        timer_cancelled
-        timeout_handled
-    variables
-        duration : Integer
-        active : Boolean
-    states
-        Inactive -> start (duration) / timer_started; active := true -> Active
-        Active -> cancel / timer_cancelled; active := false -> Inactive
-        Active -> expire / timeout_handled; active := false -> Inactive
-
-scheme InterpreterScheme
-    objects
-        core = new InterpreterCore(Idle)
-        env = new Environment(Empty)
-        timer = new TimerManager(Inactive)
-
-    links
-        core.create_environment -> env.create_object
-        core.interpret_command -> env.validate_interface
-        core.start_timer -> timer.start
-        core.cancel_timer -> timer.cancel
-        timer.expire -> core.timer_complete
-        env.interface_validated -> core.process_interface
-
-    public
-        core.load_program
-        core.handle_command
-        core.step_execution
 
 
 
