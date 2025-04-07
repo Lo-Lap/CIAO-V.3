@@ -424,7 +424,7 @@ class Interpreter:
             if interface in self._current_stop_commands:
                 self.timer.cancel()
                 print(f"{obj_part} >> Таймер отменён событием: {interface}")
-                return
+                # return
 
         parts = interface.split('.')
         if len(parts) != 2:
@@ -510,11 +510,12 @@ class Interpreter:
               f"Переход: {Style.BRIGHT + autoClass.state + Style.RESET_ALL} -> "
               f"{Style.BRIGHT + end_state + Style.RESET_ALL}")
         autoClass.state = end_state
-        print(f"{Style.BRIGHT + obj + Style.RESET_ALL} >> Cобытиe: {Style.BRIGHT + event + Style.RESET_ALL} "
-              f"- выполнено\n")
 
         if actions:
             self.interpretActions(obj, actions)
+
+        print(f"{Style.BRIGHT + obj + Style.RESET_ALL} >> Cобытиe: {Style.BRIGHT + event + Style.RESET_ALL} "
+              f"- выполнено\n")
 
         self.isAfter(autoClass.state, state_table, obj)
 
@@ -550,8 +551,9 @@ class Interpreter:
             self.objects[obj].state = cell.end_state
             if cell.actions:
                 self.interpretActions(obj, cell.actions)
-            print(f"{obj} >> Переход в состояние: {cell.end_state}\n")
-            # self.isAfter(cell.end_state, stateTable, obj)
+            print(f"{Style.BRIGHT + obj+ Style.RESET_ALL} >> Переход: {Style.BRIGHT + state + Style.RESET_ALL} -> "
+                  f"{Style.BRIGHT + cell.end_state + Style.RESET_ALL}\n")
+            self.isAfter(cell.end_state, stateTable, obj)
             print(">>> ", end='', flush=True)
 
         # Запускаем таймер в отдельном потоке
@@ -564,6 +566,24 @@ class Interpreter:
                                        if stateTable[state_ind][ind] is not None
                                        and name_event != "after"
                                        and name_event != ""]
+
+        # current_stop_commands = []
+        # for ind, name_event in enumerate(stateTable[0]):
+        #     if stateTable[state_ind][ind] is not None and name_event != "after" and name_event != "":
+        #         command = f"{obj}.{name_event}"
+        #         new_command = None
+        #         for link in self.links:
+        #             for key, value in link.items():
+        #                 if command not in value:
+        #                     continue
+        #                 new_command = key
+        #                 break
+        #         if new_command is None:
+        #             current_stop_commands.append(command)
+        #         else:
+        #             current_stop_commands.append(new_command)
+        #
+        # self._current_stop_commands = current_stop_commands
 
         print(f"\n{obj} >> Таймер {Style.BRIGHT} after({var_value}) {Style.RESET_ALL} запущен. Команды остановки:")
         for cmd in self._current_stop_commands:
@@ -606,8 +626,8 @@ class Interpreter:
                 self.interpret(command, True)
                 return True
 
-        if hasattr(self, 'timer') and self.timer.is_active():
-            return True
+        # if hasattr(self, 'timer') and self.timer.is_active():
+        #     return True
 
         # Остальные команды...
         if command == "exitCode":
