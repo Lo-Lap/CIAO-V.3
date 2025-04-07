@@ -22,8 +22,8 @@ def handle_command(command):
     else:
         ast = GetAST(ciao_json_file, command, False)
         # print(GenerateCode(ast, "_debug\\out.ciao")
-        # if ast:
-        #     InterpretCode(ast)
+        if ast:
+            InterpretCode(ast)
     return True
 
 
